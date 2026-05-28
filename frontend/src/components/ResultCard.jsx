@@ -44,7 +44,9 @@ export default function ResultCard({ result, language, onReset }) {
             <Icon className={`w-8 h-8 ${theme.text}`} />
             <h2 className={`text-3xl font-bold ${theme.text}`}>{theme.label}</h2>
           </motion.div>
-          <p className="text-sm font-semibold text-[#475569] uppercase tracking-widest">{result.scam_type}</p>
+          {result.scam_type && (
+            <p className="text-sm font-semibold text-[#475569] uppercase tracking-widest">{result.scam_type}</p>
+          )}
         </div>
 
         <motion.div
@@ -150,7 +152,14 @@ export default function ResultCard({ result, language, onReset }) {
           <RefreshCcw className="w-4 h-4" />
           {isHindi ? 'नया स्कैन करें' : 'Scan Another'}
         </button>
-        <button className="text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] px-6 py-2 rounded-lg transition-all duration-200 hover:shadow-md">
+        <button
+          onClick={() => {
+            const saveText = `[${result.verdict}] ${result.scam_type || 'Scam Analysis'} - ${result.confidence}% Confidence`;
+            navigator.clipboard.writeText(saveText);
+            alert('Result copied to clipboard!');
+          }}
+          className="text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] px-6 py-2 rounded-lg transition-all duration-200 hover:shadow-md"
+        >
           {isHindi ? 'सहेजें' : 'Save Result'}
         </button>
       </motion.div>

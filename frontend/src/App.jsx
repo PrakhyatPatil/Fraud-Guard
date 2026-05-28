@@ -8,16 +8,67 @@ import CallAnalysisPage from './pages/CallAnalysisPage';
 import client from './api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Error Boundary for catching React errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('React Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
+            <p className="text-gray-700 mb-6">An unexpected error occurred. Please refresh the page and try again.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const [language, setLanguage] = useState('EN');
   const [currentPage, setCurrentPage] = useState('home');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  // Fetch scan history on mount
+  React.useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await client.get('/history');
+        setHistory(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch history:', err);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const isHindi = language === 'HI';
 
   const handleAnalyze = async (data) => {
+    if (isScanning) return; // Prevent duplicate submissions
     setIsScanning(true);
     setResult(null);
     setError(null);
@@ -28,9 +79,16 @@ function App() {
 
       // Convert file/blob to base64 if not already
       if (data.type !== 'text' && data.file) {
-        const base64 = await fileToBase64(data.file);
-        content = base64.split(',')[1]; // strip data:... prefix
-        mimeType = data.file.type || 'image/jpeg';
+        try {
+          const base64 = await fileToBase64(data.file);
+          content = base64.split(',')[1]; // strip data:... prefix
+          mimeType = data.file.type || 'image/jpeg';
+        } catch (fileErr) {
+          const msg = isHindi ? 'फ़ाइल को पढ़ने में विफल। कृपया पुनः प्रयास करें।' : 'Failed to read file. Please try again.';
+          setError(msg);
+          setIsScanning(false);
+          return;
+        }
       }
 
       const response = await client.post('/analyze', {
@@ -40,6 +98,8 @@ function App() {
       });
 
       setResult(response.data);
+      // Add to history
+      setHistory((prev) => [response.data, ...prev]);
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || (isHindi ? 'विश्लेषण विफल। कृपया फिर से प्रयास करें।' : 'Analysis failed. Please try again.');
       setError(msg);
@@ -54,7 +114,8 @@ function App() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
+      reader.onerror = (error) => reject(new Error('Failed to read file'));
+      reader.onabort = () => reject(new Error('File read was aborted'));
     });
   };
 
@@ -154,7 +215,8 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar
         language={language}
         setLanguage={setLanguage}
@@ -195,7 +257,8 @@ function App() {
           {renderPage()}
         </motion.div>
       </AnimatePresence>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 

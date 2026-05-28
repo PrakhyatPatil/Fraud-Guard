@@ -187,8 +187,24 @@ async def analyze_with_gemini(input_type: str, content: str, mime_type: str = "t
                 
                 if resp.status_code == 200:
                     raw = resp.json()
-                    text = raw["candidates"][0]["content"]["parts"][0]["text"]
-                    return json.loads(text)
+                    try:
+                        # Safely extract nested response
+                        candidates = raw.get("candidates", [])
+                        if not candidates:
+                            raise ValueError("No candidates in Gemini response")
+                        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text")
+                        if not text:
+                            raise ValueError("No text content in Gemini response")
+                        # Parse and validate JSON structure
+                        result = json.loads(text)
+                        required_fields = ["verdict", "confidence", "summary_en", "summary_hi", "red_flags"]
+                        for field in required_fields:
+                            if field not in result:
+                                raise ValueError(f"Missing required field in response: {field}")
+                        return result
+                    except (KeyError, IndexError, json.JSONDecodeError) as e:
+                        logger.error(f"Gemini response parsing failed: {str(e)}. Response: {text if 'text' in locals() else raw}")
+                        raise ValueError(f"Invalid Gemini response structure: {str(e)}")
                 
                 elif resp.status_code == 429:
                     # Rate limited - retry with exponential backoff

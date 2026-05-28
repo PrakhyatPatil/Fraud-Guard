@@ -8,7 +8,7 @@ from database import Base
 class Scan(Base):
     __tablename__ = "scans"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     input_type = Column(String, nullable=False)          # screenshot | text | audio
     verdict = Column(String, nullable=False)             # FRAUD | SUSPICIOUS | SAFE
     confidence = Column(Integer, nullable=False)

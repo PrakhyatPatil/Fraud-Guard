@@ -5,7 +5,7 @@ from datetime import datetime
 
 class AnalyzeRequest(BaseModel):
     input_type: str = Field(..., description="screenshot | text | audio")
-    content: str = Field(..., description="Base64 encoded content or plain text")
+    content: str = Field(..., description="Base64 encoded content or plain text", max_length=5242880)  # 5MB limit
     mime_type: Optional[str] = Field(default="text/plain", description="MIME type of the content")
 
 
